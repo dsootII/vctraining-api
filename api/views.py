@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from .models import *
 from .serializers import *
 
@@ -28,14 +28,33 @@ class LoginView(APIView):
 class SignUpView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = UserSerializer(data=request.data)
-
         if serializer.is_valid():
             user = serializer.save()
+            address_data = request.data.get('address')
+            if address_data:
+                address = Address.objects.create(
+                    street=address_data['street'],
+                    city=address_data['city'],
+                    state=address_data['state'],
+                    country=address_data['country']
+                )
+                user.address = address
+                user.save()
+
+            student_data = {
+                'user': user.id,
+                'program': request.data.get('program'),
+                'mentor': request.data.get('mentor')
+            }
+            student_serializer = StudentSerializer(data=student_data)
+            if student_serializer.is_valid():
+                student_serializer.save()
+            
             self.send_verification_email(user)
             return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     def send_verification_email(self, user):
         current_site = get_current_site(self.request)
         subject = 'Activate Your Account'

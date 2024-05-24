@@ -10,11 +10,16 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
+import django
+from django.utils.encoding import force_str
+django.utils.encoding.force_text = force_str
+
 import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+print("initial BASE_DIR", BASE_DIR)
 
 
 # Quick-start development settings - unsuitable for production
@@ -38,11 +43,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "rest_framework",
     "api"
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -54,9 +61,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "vctraining.urls"
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
 
-print("BASE_DIR", BASE_DIR)
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# print("BASE_DIR", BASE_DIR)
 
 # Add these lines at the end of your settings.py file
 MEDIA_URL = '/media/'
@@ -86,7 +97,11 @@ WSGI_APPLICATION = "vctraining.wsgi.application"
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    "clientDB": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "vctraining",
         "USER": "postgres",
