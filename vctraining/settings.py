@@ -37,13 +37,13 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "corsheaders",
     "rest_framework",
     "api"
 ]
@@ -62,7 +62,7 @@ MIDDLEWARE = [
 ROOT_URLCONF = "vctraining.urls"
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    "http://localhost:3000"
 ]
 
 # BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

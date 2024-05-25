@@ -11,10 +11,11 @@ from django.http import FileResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import viewsets, status
 from .models import *
 from .serializers import *
+import pdb;
 
 class LoginView(APIView):
     def post(self, request, *args, **kwargs):
@@ -26,8 +27,15 @@ class LoginView(APIView):
         return Response(UserSerializer(user).data)
 
 class SignUpView(APIView):
+    print("signup view entered")
+    permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
+        breakpoint()
+        #isko try catch block me daal
         serializer = UserSerializer(data=request.data)
+
+        print('printing serialized data in signup view handler', serializer)
         if serializer.is_valid():
             user = serializer.save()
             address_data = request.data.get('address')

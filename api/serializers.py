@@ -7,37 +7,31 @@ class AddressSerializer(serializers.ModelSerializer):
         fields = '__all__'
         
 class UserSerializer(serializers.ModelSerializer):
-    address = AddressSerializer()
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'password', 'first_name', 'last_name', 'phone',
+            'birthdate', 'gender', 'address', 'role', 'photo'
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
-        address_data = validated_data.pop('address')
-        address_serializer = AddressSerializer(data=address_data)
-        
-        if address_serializer.is_valid():
-            address_instance = address_serializer.save()
-            user_instance = User.objects.create(address=address_instance, **validated_data)
-            return user_instance
-        else:
-            # Handle invalid address data
-            raise serializers.ValidationError("Invalid address data")
+        user = User.objects.create_user(**validated_data)
+        return user
 
     def update(self, instance, validated_data):
-        address_data = validated_data.pop('address')
-        address_instance, _ = Address.objects.get_or_create(**address_data)
+        # Handle password separately
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
 
-        # Retrieve all attributes from the validated data
+        # Update the rest of the fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        # Replace address attribute with instance object
-        instance.address = address_instance
         instance.save()
         return instance
-
-    class Meta:
-        model = User
-        fields = ['first_name', 'last_name', 'gender', 'birthdate', 'photo', 'email', 'role', 'address']
-
+    
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
