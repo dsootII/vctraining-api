@@ -22,6 +22,7 @@ urlpatterns = [
     # Authentication endpoints
     path('login/', LoginView.as_view(), name='login'),
     path('signup/', SignUpView.as_view(), name='signup'),
+    path('getsignupdropdowns/', SignupDropdowns.as_view(), name='signupdropdowns'),
     path('verify/<str:uidb64>/<str:token>/', EmailVerificationView.as_view(), name='email_verification'),
 
     # Media routes

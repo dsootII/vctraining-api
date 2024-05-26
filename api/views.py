@@ -12,10 +12,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from .models import *
 from .serializers import *
-import pdb;
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
 
 class LoginView(APIView):
     def post(self, request, *args, **kwargs):
@@ -25,60 +27,120 @@ class LoginView(APIView):
         login(request, user)
 
         return Response(UserSerializer(user).data)
+    
+class SignupDropdowns (APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, *args, **kwargs):
+        all_mentors = Mentor.objects.all()
+        all_programs = Program.objects.all()
+
+        try:
+            all_mentors_serialized = MentorSerializer(all_mentors, many=True)
+            all_programs_serialized = ProgramSerializer(all_programs, many=True)
+            
+            return Response(
+                {
+                    "mentors": all_mentors_serialized.data, 
+                    "programs": all_programs_serialized.data
+                }
+            )
+        except Exception as e:
+            print(f"error occured while serializing {e}")
+            return Response(f"error occured while serializing {e}")
+        
 
 class SignUpView(APIView):
     print("signup view entered")
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        breakpoint()
-        #isko try catch block me daal
-        serializer = UserSerializer(data=request.data)
-
-        print('printing serialized data in signup view handler', serializer)
-        if serializer.is_valid():
-            user = serializer.save()
+        #attempting to save user
+        try:
+            #first creating an address entry
             address_data = request.data.get('address')
-            if address_data:
+            
+            try:
                 address = Address.objects.create(
                     street=address_data['street'],
                     city=address_data['city'],
                     state=address_data['state'],
-                    country=address_data['country']
+                    country=address_data['country'],
+                    postal_code = address_data['postal_code']
                 )
-                user.address = address
-                user.save()
-
-            student_data = {
-                'user': user.id,
-                'program': request.data.get('program'),
-                'mentor': request.data.get('mentor')
-            }
-            student_serializer = StudentSerializer(data=student_data)
-            if student_serializer.is_valid():
-                student_serializer.save()
+                if address:
+                    address.save()
+                    del request.data['address']
+                    request.data['address'] = address.id
+            except Exception as e:
+                print(f'Error creating address: {e}')
+                return Response(f"Error creating address, {e}")
             
-            self.send_verification_email(user)
-            return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            #now, equipped with the address, saving the user in the database
+            serializer = UserSerializer(data=request.data)
+            
+            if serializer.is_valid():    
+                try:
+                    user = serializer.save()
+                    #handle the case where it's signup for mentor:
+                    #randomly generate the code
+                    
+                    #handle the case where it's signup for student:
+                    #getting the mentor and program objects from db
+                    p1 = Program.objects.get(pk=request.data['program'])
+                    m1 = Mentor.objects.get(pk=request.data['mentor'])
+                    #creating the user entry
+                    student = Student.objects.create(user=user, program=p1, mentor=m1)
+                    print(student)
+                    if student:
+                        login(request, user)
+                        
+                        # Generate JWT token
+                        refresh = RefreshToken.for_user(user)
+                        
+                        return Response(
+                            {
+                                "msg": "student successfully created",
+                                "student_data": StudentSerializer(student).data,
+                                "refresh": str(refresh),
+                                "access": str(refresh.access_token)
+                            }, 
+                            status=status.HTTP_201_CREATED
+                        )
+                except Exception as e:
+                    print("error occured in saving from serializer: ", e)
+                    return Response(f"Error occured while saving user, {e}")
+                try:
+                    self.send_verification_email(user)
+                except Exception as e:
+                    print(f'Error sending verification email: {e}')
+                return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors)
+        
+        #handling any error    
+        except Exception as e:
+            print(f'Error in signup process: {e}\n', 'serializer.errors:\n', serializer.errors)
+            return Response({"detail": "An error occurred during sign up."}, status=status.HTTP_200_OK)
 
     def send_verification_email(self, user):
-        current_site = get_current_site(self.request)
-        subject = 'Activate Your Account'
-        message = render_to_string('verification_email.html', {
-            'user': user,
-            'domain': current_site.domain,
-            'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-            'token': default_token_generator.make_token(user),
-        })
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            fail_silently=False,
-        )
+        try:
+            current_site = get_current_site(self.request)
+            subject = 'Activate Your Account'
+            message = render_to_string('verification_email.html', {
+                'user': user,
+                'domain': current_site.domain,
+                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+                'token': default_token_generator.make_token(user),
+            })
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f'Error in send_verification_email: {e}')
 
 class EmailVerificationView(APIView):
     def get(self, request, uidb64, token):

@@ -11,7 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'password', 'first_name', 'last_name', 'phone',
-            'birthdate', 'gender', 'address', 'role', 'photo'
+            'birthdate', 'gender', 'address', 'role', 'photo', 'username'
         ]
         extra_kwargs = {'password': {'write_only': True}}
 
@@ -75,6 +75,10 @@ class MentorSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class StudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Student
+        fields = '__all__'
+    
     user = UserSerializer()
 
     def create(self, validated_data):
@@ -91,7 +95,4 @@ class StudentSerializer(serializers.ModelSerializer):
             **validated_data
         )
         return student
-
-    class Meta:
-        model = Student
-        fields = '__all__'
+    
