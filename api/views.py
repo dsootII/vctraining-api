@@ -16,6 +16,7 @@ from rest_framework import viewsets, status, serializers
 from .models import *
 from .serializers import *
 from rest_framework_simplejwt.tokens import RefreshToken
+import string, random
 
 
 
@@ -141,6 +142,61 @@ class SignUpView(APIView):
             )
         except Exception as e:
             print(f'Error in send_verification_email: {e}')
+
+class SignupViewMentor(APIView):
+
+    def post(self, request, *args, **kwargs):
+        print("mentorsignup view entered")
+        
+        #create the user entry
+        try:
+            #first creating an address entry
+            address_data = request.data.get('address')
+            
+            try:
+                address = Address.objects.create(
+                    street=address_data['street'],
+                    city=address_data['city'],
+                    state=address_data['state'],
+                    country=address_data['country'],
+                    postal_code = address_data['postal_code']
+                )
+                if address:
+                    address.save()
+                    del request.data['address']
+                    request.data['address'] = address.id
+            except Exception as e:
+                print(f'Error creating address: {e}')
+                return Response(f"Error creating address, {e}")
+            
+            #now, equipped with the address, saving the user in the database
+            serializer = UserSerializer(data=request.data)
+            
+            if serializer.is_valid():    
+                try:
+                    user = serializer.save()
+
+                    # create the mentor entry.
+                    # just need a code, and user
+                    characters = string.ascii_uppercase + string.digits
+                    #generate random code
+                    code = ''.join(random.choices(characters, k=6))
+                    try:
+                        mentor = Mentor.objects.create(user=user, code=code)
+                        print("Mentor created, ", mentor)
+                        mentor.save()
+                    except Exception as e:
+                        print(e)
+                        return Response(f"error occured in creating mentor, {e}")
+
+                except Exception as e:
+                    return Response(f"Error creating address, {e}")
+            else:
+                print("Serializer is not valid. printing serializer.inital_data, ", serializer.initial_data)
+                Response(f"Error occured in serializer: {serializer.initial_data}")
+                
+        except Exception as e:
+            return Response(f"Error occured while saving, {e}")
 
 class EmailVerificationView(APIView):
     def get(self, request, uidb64, token):
